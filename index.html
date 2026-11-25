@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Enterprise IMS</title>
+    <meta name="description" content="Enterprise-grade Inventory, Multi-Branch Warehouse, Sales, Purchasing, Money & Accounting System." />
+    <meta property="og:title" content="Enterprise IMS" />
+    <meta property="og:description" content="Enterprise-grade Inventory, Multi-Branch Warehouse, Sales, Purchasing, Money & Accounting System." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      @media print {
+        #root { display: none !important; }
+        #print-root { display: block !important; }
+        body { background: #fff !important; margin: 0; padding: 0; }
+        @page { margin: 12mm 15mm; size: A4 portrait; }
+      }
+      .pr-a4 { width: 100%; max-width: 100%; box-sizing: border-box; font-family: 'Inter', 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 11.5px; line-height: 1.45; color: #0f172a; background: #fff; margin: 0 auto; }
+      .pr-a4 * { box-sizing: border-box; }
+      .pr-a4 .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px; }
+      .pr-a4 .head > div { min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
+      .pr-a4 .brand { font-size: 20px; font-weight: 800; letter-spacing: -0.3px; color: #0f172a; line-height: 1.2; }
+      .pr-a4 .muted { color: #64748b; font-size: 11px; line-height: 1.4; margin-top: 3px; }
+      .pr-a4 .doc-title-box { text-align: end; flex-shrink: 0; max-width: 45%; }
+      .pr-a4 h1 { font-size: 20px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #0f172a; margin: 0 0 4px 0; line-height: 1.2; }
+      .pr-a4 table { width: 100%; border-collapse: collapse; margin-top: 12px; margin-bottom: 12px; font-size: 11.5px; }
+      .pr-a4 th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 2.5px 10px; text-align: start; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #334155; overflow-wrap: anywhere; word-break: break-word; }
+      .pr-a4 td { border: 1px solid #cbd5e1; padding: 2.5px 10px; vertical-align: middle; color: #1e293b; overflow-wrap: anywhere; word-break: break-word; }
+      .pr-a4 .num { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
+      .pr-a4 .tot-container { display: flex; justify-content: flex-end; margin-top: 8px; margin-bottom: 16px; }
+      [dir="rtl"] .pr-a4 .tot-container { justify-content: flex-start; }
+      .pr-a4 table.tot { width: auto; min-width: 260px; max-width: 100%; margin: 0; border: none; }
+      .pr-a4 table.tot td { border: none; padding: 2px 8px; font-size: 11.5px; }
+      .pr-a4 table.tot .tot-label { text-align: start; color: #475569; font-weight: 500; }
+      .pr-a4 table.tot .grand td { border-top: 2px solid #0f172a; border-bottom: 2px solid #0f172a; font-weight: 800; font-size: 13.5px; color: #0f172a; padding-top: 4px; padding-bottom: 4px; }
+      .pr-a4 .meta { display: flex; justify-content: space-between; gap: 16px; margin-top: 14px; margin-bottom: 16px; }
+      .pr-a4 .meta .box, .pr-a4 .box { min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
+      .pr-a4 .meta .box { flex: 1; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; background: #f8fafc; font-size: 11.5px; line-height: 1.5; }
+      .pr-a4 .meta .box .lbl { font-size: 10px; text-transform: uppercase; color: #64748b; letter-spacing: 0.8px; font-weight: 700; margin-bottom: 4px; }
+      .pr-a4 .foot { margin-top: 24px; font-size: 10.5px; color: #64748b; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 8px; page-break-inside: avoid; overflow-wrap: anywhere; }
+      .pr-a4 .sign { margin-top: 32px; display: flex; justify-content: space-between; gap: 32px; font-size: 11px; page-break-inside: avoid; }
+      .pr-a4 .sign div { flex: 1; max-width: 220px; border-top: 1px solid #475569; padding-top: 6px; text-align: center; color: #334155; font-weight: 500; }
+      .pr-a4 table.report-table th, .pr-a4 table.report-table td { border: 1px solid #cbd5e1; padding: 2.5px 10px; }
+      .pr-a4 table.report-table tr.section-header td { background: #f1f5f9; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; }
+      .pr-a4 table.report-table tr.subtotal td { background: #f8fafc; font-weight: 700; border-top: 1.5px solid #94a3b8; }
+      .pr-a4 table.report-table tr.grand td { background: #f1f5f9; border-top: 2px solid #0f172a; border-bottom: 2px solid #0f172a; font-weight: 800; font-size: 13px; }
+      .pr-a4 th.current-del-col, .pr-a4 td.current-del-col { background-color: #e0f2fe !important; color: #0369a1 !important; font-weight: 700; border-left: 1.5px solid #0284c7 !important; border-right: 1.5px solid #0284c7 !important; }
+      .pr-a4 th.current-del-col { border-top: 1.5px solid #0284c7 !important; background-color: #bae6fd !important; }
+      .pr-a4 tr:last-child td.current-del-col { border-bottom: 1.5px solid #0284c7 !important; }
+      .pr-a4 table.progressive-del-table { width: 100% !important; max-width: 100% !important; table-layout: auto !important; box-sizing: border-box !important; }
+      .pr-a4 th.col-vertical { height: auto; min-height: 95px; width: 1%; min-width: 42px; vertical-align: bottom !important; text-align: center !important; padding: 6px 4px !important; white-space: normal; }
+      .pr-a4 th.th-items { vertical-align: bottom !important; text-align: start !important; padding: 8px 8px !important; font-size: 10.5px; font-weight: 700; width: auto; min-width: 120px; }
+      .pr-a4 .rot-90 { writing-mode: vertical-rl; text-orientation: mixed; white-space: normal; overflow-wrap: anywhere; word-break: break-word; display: inline-block; font-size: 9px; font-weight: 700; line-height: 1.25; letter-spacing: 0.2px; text-align: start; }
+    </style>
+  </head>
+  <body class="bg-slate-100 text-slate-800 antialiased selection:bg-blue-500 selection:text-white">
+    <div id="root"></div>
+    <div id="print-root" style="display:none"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

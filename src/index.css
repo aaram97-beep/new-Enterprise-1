@@ -1,0 +1,606 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Inter', 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  [dir="rtl"] {
+    font-family: 'Cairo', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}
+
+/* ========================================================
+   PRINTABLE & A4 PREVIEW STYLES
+   Ensures crystal-clear, undistorted documents across
+   both LTR (English) and RTL (Arabic) modes.
+   ======================================================== */
+.pr-a4 {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  font-family: 'Inter', 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #0f172a;
+  background: #ffffff;
+}
+
+.pr-a4 * {
+  box-sizing: border-box;
+}
+
+.pr-a4 .head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  border-bottom: 2px solid #0f172a;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+.pr-a4 .head > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.pr-a4 .brand {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.pr-a4 .muted {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.4;
+  margin-top: 3px;
+}
+
+.pr-a4 .doc-title-box {
+  text-align: end;
+  flex-shrink: 0;
+  max-width: 45%;
+}
+
+.pr-a4 h1 {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+  line-height: 1.2;
+}
+
+.pr-a4 .meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 14px;
+  margin-bottom: 16px;
+}
+
+.pr-a4 .meta .box,
+.pr-a4 .box {
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.pr-a4 .meta .box {
+  flex: 1;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.pr-a4 .meta .box .lbl {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.8px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.pr-a4 table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  margin-bottom: 12px;
+  font-size: 11.5px;
+}
+
+.pr-a4 th {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  padding: 4px 8px;
+  vertical-align: middle;
+  text-align: start;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #334155;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.pr-a4 td {
+  border: 1px solid #cbd5e1;
+  padding: 4px 8px;
+  vertical-align: middle;
+  color: #1e293b;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.pr-a4 .nowrap {
+  white-space: nowrap;
+}
+
+.pr-a4 .num {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pr-a4 .pr-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Standalone, perfectly aligned Totals Block without phantom empty columns */
+.pr-a4 .tot-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+  margin-bottom: 16px;
+}
+
+[dir="rtl"] .pr-a4 .tot-container {
+  justify-content: flex-start;
+}
+
+.pr-a4 table.tot {
+  width: auto;
+  min-width: 260px;
+  max-width: 100%;
+  margin: 0;
+  border: none;
+}
+
+.pr-a4 table.tot td {
+  border: none;
+  padding: 2px 8px;
+  font-size: 11.5px;
+}
+
+.pr-a4 table.tot .tot-label {
+  text-align: start;
+  color: #475569;
+  font-weight: 500;
+}
+
+.pr-a4 table.tot .grand td {
+  border-top: 2px solid #0f172a;
+  border-bottom: 2px solid #0f172a;
+  font-weight: 800;
+  font-size: 13.5px;
+  color: #0f172a;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.pr-a4 .sign {
+  margin-top: 32px;
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+  font-size: 11px;
+  page-break-inside: avoid;
+}
+
+.pr-a4 .sign div {
+  flex: 1;
+  max-width: 220px;
+  border-top: 1px solid #475569;
+  padding-top: 6px;
+  text-align: center;
+  color: #334155;
+  font-weight: 500;
+}
+
+.pr-a4 .foot {
+  margin-top: 24px;
+  font-size: 10.5px;
+  color: #64748b;
+  text-align: center;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 8px;
+  page-break-inside: avoid;
+}
+
+.pr-a4 .logo {
+  max-height: 60px;
+  max-width: 180px;
+  margin-bottom: 6px;
+  object-fit: contain;
+}
+
+/* Report table styles for Accounting */
+.pr-a4 table.report-table th,
+.pr-a4 table.report-table td {
+  border: 1px solid #cbd5e1;
+  padding: 2.5px 10px;
+  vertical-align: middle;
+}
+
+.pr-a4 table.report-table tr.section-header td {
+  background: #f1f5f9;
+  font-weight: 700;
+  color: #0f172a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pr-a4 table.report-table tr.subtotal td {
+  background: #f8fafc;
+  font-weight: 700;
+  border-top: 1.5px solid #94a3b8;
+}
+
+.pr-a4 table.report-table tr.grand td {
+  background: #f1f5f9;
+  border-top: 2px solid #0f172a;
+  border-bottom: 2px solid #0f172a;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+/* Progressive delivery slip fulfillment table styling */
+.pr-a4 th.current-del-col,
+.pr-a4 td.current-del-col {
+  background-color: #e0f2fe !important;
+  color: #0369a1 !important;
+  font-weight: 700;
+  border-left: 1.5px solid #0284c7 !important;
+  border-right: 1.5px solid #0284c7 !important;
+}
+
+.pr-a4 th.current-del-col {
+  border-top: 1.5px solid #0284c7 !important;
+  background-color: #bae6fd !important;
+}
+
+.pr-a4 tr:last-child td.current-del-col {
+  border-bottom: 1.5px solid #0284c7 !important;
+}
+
+.pr-a4 table.progressive-del-table {
+  width: 100% !important;
+  max-width: 100% !important;
+  table-layout: auto !important;
+  box-sizing: border-box !important;
+}
+
+/* First row exception for the "Remaining to fulfil" table */
+.pr-a4 th.col-vertical {
+  height: auto;
+  min-height: 95px;
+  width: 1%;
+  min-width: 42px;
+  vertical-align: bottom !important;
+  text-align: center !important;
+  padding: 6px 4px !important;
+  white-space: normal;
+}
+
+.pr-a4 th.th-items {
+  vertical-align: bottom !important;
+  text-align: start !important;
+  padding: 8px 8px !important;
+  font-size: 10.5px;
+  font-weight: 700;
+  width: auto;
+  min-width: 120px;
+}
+
+.pr-a4 .rot-90 {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0.2px;
+  text-align: start;
+}
+
+/* ========================================================
+   DARK THEME & MIDNIGHT BLUE AMBIENT SHADOWS (Option 1)
+   ======================================================== */
+@custom-variant dark (&:where(.dark, .dark *));
+
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #0b0f19;
+  color: #f1f5f9;
+}
+
+/* Main workspace container background */
+html.dark .min-h-screen.bg-slate-100 {
+  background-color: #0b0f19 !important;
+  color: #f1f5f9 !important;
+}
+
+/* Header in dark mode */
+html.dark header {
+  background-color: #0f172a !important;
+  border-color: #1e293b !important;
+  color: #f8fafc !important;
+  box-shadow: 0 4px 20px -4px rgba(15, 23, 42, 0.8), 0 0 15px -2px rgba(30, 58, 138, 0.25) !important;
+}
+
+/* All main cards, tables, panels (bg-white -> rich dark slate with dark blue ambient shadow) */
+html.dark .bg-white:not(.pr-a4):not(.pr-a4 *):not(.print-paper-sheet):not(.print-paper-sheet *) {
+  background-color: #0f172a !important;
+  border-color: #1e293b !important;
+  color: #f1f5f9;
+  box-shadow: 0 10px 30px -5px rgba(2, 6, 23, 0.7), 0 0 25px -4px rgba(30, 58, 138, 0.22) !important;
+}
+
+/* Slate background replacements in dark mode (catching exact classes, opacity slashes /80, /70, etc.) */
+html.dark [class*="bg-slate-50"]:not(.pr-a4):not(.pr-a4 *):not(.print-paper-sheet):not(.print-paper-sheet *),
+html.dark [class*="bg-slate-100"]:not(body):not(.min-h-screen):not(.pr-a4):not(.pr-a4 *):not(.print-paper-sheet):not(.print-paper-sheet *),
+html.dark [class*="bg-slate-200"]:not(.pr-a4):not(.pr-a4 *):not(.print-paper-sheet):not(.print-paper-sheet *) {
+  background-color: #1e293b !important;
+  color: #f1f5f9;
+}
+
+/* Borders in dark mode */
+html.dark .border-slate-100:not(.pr-a4):not(.pr-a4 *),
+html.dark .border-slate-200:not(.pr-a4):not(.pr-a4 *),
+html.dark [class*="border-slate-200"]:not(.pr-a4):not(.pr-a4 *),
+html.dark .border-slate-300:not(.pr-a4):not(.pr-a4 *),
+html.dark [class*="border-slate-300"]:not(.pr-a4):not(.pr-a4 *) {
+  border-color: #334155 !important;
+}
+
+/* Text colors */
+html.dark .text-slate-900:not(.pr-a4):not(.pr-a4 *),
+html.dark .text-slate-800:not(.pr-a4):not(.pr-a4 *) {
+  color: #f8fafc !important;
+}
+html.dark .text-slate-700:not(.pr-a4):not(.pr-a4 *),
+html.dark .text-slate-600:not(.pr-a4):not(.pr-a4 *) {
+  color: #cbd5e1 !important;
+}
+html.dark .text-slate-500:not(.pr-a4):not(.pr-a4 *),
+html.dark .text-slate-400:not(.pr-a4):not(.pr-a4 *) {
+  color: #94a3b8 !important;
+}
+
+/* Form Inputs, Selects, and Textareas */
+html.dark input:not(.pr-a4 input):not([type="checkbox"]):not([type="radio"]),
+html.dark select:not(.pr-a4 select),
+html.dark textarea:not(.pr-a4 textarea) {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 10px rgba(30, 58, 138, 0.15) !important;
+}
+html.dark input:not(.pr-a4 input):focus,
+html.dark select:not(.pr-a4 select):focus,
+html.dark textarea:not(.pr-a4 textarea):focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25), 0 0 16px rgba(37, 99, 235, 0.3) !important;
+}
+
+/* Table rows hover */
+html.dark tr[class*="hover:bg-slate-50"]:hover,
+html.dark tr[class*="hover:bg-slate-100"]:hover,
+html.dark tr.hover\:bg-slate-50:hover {
+  background-color: #1e293b !important;
+}
+
+/* Floating Modals and Windows (Layered Depth & Dark Blue Halo) */
+html.dark .fixed .rounded-2xl.bg-white:not(.pr-a4):not(.pr-a4 *),
+html.dark .fixed .rounded-2xl.bg-slate-100:not(.pr-a4):not(.pr-a4 *),
+html.dark [role="dialog"] {
+  background-color: #0f172a !important;
+  border: 1px solid rgba(59, 130, 246, 0.25) !important;
+  box-shadow: 0 25px 65px -10px rgba(2, 6, 23, 0.95), 0 0 40px -5px rgba(30, 58, 138, 0.4) !important;
+}
+
+/* Primary Action Buttons - Dark Blue Ambient Glow */
+html.dark button.bg-blue-600,
+html.dark a.bg-blue-600 {
+  box-shadow: 0 0 16px rgba(37, 99, 235, 0.45), 0 4px 6px -1px rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid rgba(147, 197, 253, 0.2) !important;
+}
+html.dark button.bg-blue-600:hover,
+html.dark a.bg-blue-600:hover {
+  box-shadow: 0 0 24px rgba(59, 130, 246, 0.65), 0 6px 10px -1px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Secondary, Outline, & Modal Action Buttons in Dark Mode */
+html.dark button:not(.bg-blue-600):not(.bg-rose-600):not(.bg-emerald-600):not([aria-label="Close modal"]):not([aria-label="Close drawer"]):not(.pr-a4 button) {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 8px rgba(30, 58, 138, 0.15);
+}
+
+/* Modal Cancel and Secondary Buttons (Resting & Hover Contrast) */
+html.dark button.bg-slate-100,
+html.dark button.bg-slate-200,
+html.dark button[class*="bg-slate-100"],
+html.dark button[class*="bg-slate-200"],
+html.dark button[class*="bg-slate-50"] {
+  background-color: #1e293b !important;
+  color: #e2e8f0 !important;
+  border: 1px solid #334155 !important;
+}
+
+/* Button & interactive element hovers in dark mode */
+html.dark button[class*="hover:bg-slate-50"]:hover,
+html.dark button[class*="hover:bg-slate-100"]:hover,
+html.dark button[class*="hover:bg-slate-200"]:hover,
+html.dark button[class*="hover:bg-slate-300"]:hover,
+html.dark a[class*="hover:bg-slate-50"]:hover,
+html.dark a[class*="hover:bg-slate-100"]:hover,
+html.dark a[class*="hover:bg-slate-200"]:hover {
+  background-color: #334155 !important;
+  color: #ffffff !important;
+  border-color: #475569 !important;
+}
+
+/* Inactive sub-tab buttons in dark mode */
+html.dark button.border-slate-200:not(.bg-blue-600):not(.bg-emerald-600):not(.bg-rose-600) {
+  background-color: #1e293b;
+  border-color: #334155 !important;
+  color: #cbd5e1;
+}
+
+/* Green Action Buttons (Excel download, positive actions) */
+html.dark button.bg-emerald-600 {
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.35), 0 4px 6px -1px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Red Action Buttons (Delete, Cancel) */
+html.dark button.bg-rose-600 {
+  box-shadow: 0 0 14px rgba(225, 29, 72, 0.35), 0 4px 6px -1px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Light tinted pill and action buttons in dark mode (rose-50, blue-50, emerald-50, amber-50, purple-50) */
+html.dark [class*="bg-rose-50"]:not(.pr-a4):not(.pr-a4 *),
+html.dark [class*="bg-rose-100"]:not(.pr-a4):not(.pr-a4 *) {
+  background-color: rgba(136, 19, 55, 0.3) !important;
+  color: #fda4af !important;
+  border-color: rgba(225, 29, 72, 0.3) !important;
+}
+html.dark [class*="bg-blue-50"]:not(.pr-a4):not(.pr-a4 *),
+html.dark [class*="bg-blue-100"]:not(.pr-a4):not(.pr-a4 *) {
+  background-color: rgba(30, 58, 138, 0.3) !important;
+  color: #93c5fd !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+html.dark [class*="bg-emerald-50"]:not(.pr-a4):not(.pr-a4 *),
+html.dark [class*="bg-emerald-100"]:not(.pr-a4):not(.pr-a4 *) {
+  background-color: rgba(6, 78, 59, 0.3) !important;
+  color: #6ee7b7 !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+html.dark [class*="bg-amber-50"]:not(.pr-a4):not(.pr-a4 *),
+html.dark [class*="bg-amber-100"]:not(.pr-a4):not(.pr-a4 *) {
+  background-color: rgba(120, 53, 15, 0.3) !important;
+  color: #fcd34d !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+html.dark [class*="bg-purple-50"]:not(.pr-a4):not(.pr-a4 *),
+html.dark [class*="bg-purple-100"]:not(.pr-a4):not(.pr-a4 *) {
+  background-color: rgba(88, 28, 135, 0.3) !important;
+  color: #d8b4fe !important;
+  border-color: rgba(168, 85, 247, 0.3) !important;
+}
+html.dark [class*="bg-indigo-50"]:not(.pr-a4):not(.pr-a4 *),
+html.dark [class*="bg-indigo-100"]:not(.pr-a4):not(.pr-a4 *) {
+  background-color: rgba(49, 46, 129, 0.38) !important;
+  color: #a5b4fc !important;
+  border-color: rgba(99, 102, 241, 0.35) !important;
+}
+
+html.dark button[class*="hover:bg-rose-100"]:hover {
+  background-color: rgba(136, 19, 55, 0.5) !important;
+  color: #ffffff !important;
+}
+html.dark button[class*="hover:bg-blue-100"]:hover {
+  background-color: rgba(30, 58, 138, 0.5) !important;
+  color: #ffffff !important;
+}
+html.dark button[class*="hover:bg-emerald-100"]:hover {
+  background-color: rgba(6, 78, 59, 0.5) !important;
+  color: #ffffff !important;
+}
+html.dark button[class*="hover:bg-indigo-100"]:hover {
+  background-color: rgba(49, 46, 129, 0.6) !important;
+  color: #ffffff !important;
+}
+
+/* Ensure printables inside PrintPreviewModal stay 100% white paper */
+html.dark .print-paper-sheet,
+html.dark .print-paper-sheet .pr-a4,
+html.dark .print-paper-sheet .pr-a4 * {
+  background-color: transparent !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+  border-color: #cbd5e1 !important;
+}
+
+html.dark .print-paper-sheet {
+  background-color: #ffffff !important;
+}
+
+html.dark .print-paper-sheet .pr-a4 {
+  background-color: #ffffff !important;
+}
+
+html.dark .print-paper-sheet .pr-a4 th {
+  background-color: #f1f5f9 !important;
+  color: #334155 !important;
+}
+
+html.dark .print-paper-sheet .pr-a4 th.current-del-col {
+  background-color: #bae6fd !important;
+  color: #0369a1 !important;
+  border-color: #0284c7 !important;
+}
+
+html.dark .print-paper-sheet .pr-a4 td.current-del-col {
+  background-color: #e0f2fe !important;
+  color: #0369a1 !important;
+  border-color: #0284c7 !important;
+}
+
+html.dark .print-paper-sheet .pr-a4 .meta .box {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}

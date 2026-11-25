@@ -1,0 +1,918 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Shared helpers
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string &&
+        id.size() >= 1 &&
+        id.size() <= 128 &&
+        id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isSignedIn() {
+      return request.auth != null &&
+        request.auth.token.email is string &&
+        request.auth.token.email.matches('.*@company\\.internal$');
+    }
+
+    function userDocExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isActiveUser() {
+      return isSignedIn() &&
+        userDocExists() &&
+        userDoc().active == true &&
+        (!('deleted' in userDoc()) || userDoc().deleted != true);
+    }
+
+    function isAdmin() {
+      return isActiveUser() && userDoc().role == 'admin';
+    }
+
+    function hasPerm(permKey) {
+      return isActiveUser() &&
+        userDoc().perms is map &&
+        (permKey in userDoc().perms) &&
+        userDoc().perms[permKey] == true;
+    }
+
+    function canReadAudit() {
+      return isActiveUser() &&
+        hasPerm('reports') &&
+        userDoc().perms is map &&
+        (!('report_audit' in userDoc().perms) || userDoc().perms.report_audit == true);
+    }
+
+    function inBranch(branchId) {
+      return isActiveUser() &&
+        branchId is string &&
+        userDoc().branchIds is list &&
+        branchId in userDoc().branchIds;
+    }
+
+    function isInitialAdminBootstrap(uid) {
+      return isSignedIn() &&
+        request.auth.uid == uid &&
+        request.auth.token.email == 'admin@company.internal' &&
+        !exists(/databases/$(database)/documents/settings/main) &&
+        !exists(/databases/$(database)/documents/users/$(uid)) &&
+        incoming().role == 'admin' &&
+        incoming().active == true &&
+        (!('deleted' in incoming()) || incoming().deleted == false) &&
+        incoming().username == 'admin';
+    }
+
+    function hasNoPasswordFields(data) {
+      return !('pass' in data) &&
+        !('password' in data) &&
+        !('passwordHash' in data);
+    }
+
+    function isValidStr(v, maxLen) {
+      return v is string && v.size() <= maxLen;
+    }
+
+    function isValidOptStr(data, key, maxLen) {
+      return !(key in data) || (data[key] is string && data[key].size() <= maxLen);
+    }
+
+    function isValidNullableId(data, key) {
+      return !(key in data) || data[key] == null || isValidId(data[key]);
+    }
+
+    function isValidNum(v) {
+      return v is number;
+    }
+
+    function isValidOptNum(data, key) {
+      return !(key in data) || (data[key] is number);
+    }
+
+    function isValidList(v, maxLen) {
+      return v is list && v.size() <= maxLen;
+    }
+
+    function hasTimestamps(data) {
+      return ('createdAt' in data) && data.createdAt is timestamp &&
+        ('updatedAt' in data) && data.updatedAt is timestamp;
+    }
+
+    function isCreateTimestampValid() {
+      return incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+    }
+
+    function isUpdateMetaValid(id) {
+      return incoming().id == existing().id &&
+        incoming().id == id &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time;
+    }
+
+    // Schema validators
+    function isValidSettings(data) {
+      return data.keys().hasAll([
+          'companyName', 'address', 'phone', 'currency', 'taxRate',
+          'expiryWarnDays', 'logo', 'lang', 'features', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'companyName', 'address', 'phone', 'currency', 'taxRate',
+          'expiryWarnDays', 'logo', 'lang', 'features',
+          'trackBatchExpiry', 'lotExpiryMode', 'showInOtherBranchStatus',
+          'moneyDecimals', 'theme', 'isBranchCompany', 'directSaleMode',
+          'workspaceInitialized', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidStr(data.companyName, 160) &&
+        isValidStr(data.address, 300) &&
+        isValidStr(data.phone, 80) &&
+        isValidStr(data.currency, 20) &&
+        isValidNum(data.taxRate) &&
+        isValidNum(data.expiryWarnDays) &&
+        isValidStr(data.logo, 700000) &&
+        data.lang in ['en', 'ar'] &&
+        data.features is map &&
+        (!('trackBatchExpiry' in data) || data.trackBatchExpiry is bool) &&
+        (!('lotExpiryMode' in data) || data.lotExpiryMode in ['both', 'lot', 'expiry', 'none']) &&
+        (!('showInOtherBranchStatus' in data) || data.showInOtherBranchStatus is bool) &&
+        (!('moneyDecimals' in data) || (data.moneyDecimals is int && data.moneyDecimals >= 0 && data.moneyDecimals <= 4)) &&
+        (!('theme' in data) || data.theme in ['light', 'dark']) &&
+        (!('isBranchCompany' in data) || data.isBranchCompany is bool) &&
+        (!('directSaleMode' in data) || data.directSaleMode is bool) &&
+        (!('workspaceInitialized' in data) || data.workspaceInitialized is bool) &&
+        hasTimestamps(data);
+    }
+
+    function isValidCounter(data) {
+      return data.keys().hasAll([
+          'INV', 'DEL', 'RSL', 'RIN', 'INT', 'ARR', 'TRF',
+          'DSP', 'CHK', 'BRT', 'PAY', 'MTR', 'EXP', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'INV', 'DEL', 'RSL', 'RIN', 'INT', 'ARR', 'TRF',
+          'DSP', 'CHK', 'BRT', 'PAY', 'MTR', 'EXP', 'createdAt', 'updatedAt'
+        ]) &&
+        data.INV is int && data.DEL is int && data.RSL is int && data.RIN is int &&
+        data.INT is int && data.ARR is int && data.TRF is int && data.DSP is int &&
+        data.CHK is int && data.BRT is int && data.PAY is int && data.MTR is int &&
+        data.EXP is int &&
+        hasTimestamps(data);
+    }
+
+    function isValidUser(data, uid) {
+      return hasNoPasswordFields(data) &&
+        data.keys().hasAll(['id', 'name', 'username', 'role', 'branchIds', 'active', 'perms', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'name', 'username', 'role', 'branchIds', 'active', 'perms', 'deleted', 'deletedAt', 'theme', 'sidebarCollapsed', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.id == uid &&
+        isValidStr(data.name, 160) && data.name.size() >= 1 &&
+        isValidStr(data.username, 80) && data.username.size() >= 1 &&
+        data.role in ['admin', 'user'] &&
+        isValidList(data.branchIds, 50) &&
+        data.active is bool &&
+        (!('deleted' in data) || data.deleted is bool) &&
+        (!('deleted' in data) || data.deleted == false || data.active == false) &&
+        (!('deletedAt' in data) || data.deletedAt == null || data.deletedAt is number) &&
+        data.perms is map &&
+        (!('theme' in data) || data.theme in ['light', 'dark']) &&
+        (!('sidebarCollapsed' in data) || data.sidebarCollapsed is bool) &&
+        hasTimestamps(data);
+    }
+
+    function isValidBranch(data, id) {
+      return data.keys().hasAll(['id', 'code', 'name', 'address', 'isMain', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'code', 'name', 'address', 'isMain', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) && data.id == id &&
+        isValidStr(data.code, 32) &&
+        isValidStr(data.name, 160) &&
+        isValidStr(data.address, 300) &&
+        data.isMain is bool &&
+        hasTimestamps(data);
+    }
+
+    function isValidAccount(data, id) {
+      return data.keys().hasAll(['id', 'name', 'type', 'branchId', 'opening', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'name', 'type', 'branchId', 'opening', 'note', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) && data.id == id &&
+        isValidStr(data.name, 160) &&
+        data.type in ['cashbox', 'bank', 'cheques'] &&
+        (data.branchId == null || isValidId(data.branchId)) &&
+        isValidNum(data.opening) &&
+        isValidOptStr(data, 'note', 500) &&
+        hasTimestamps(data);
+    }
+
+    function isValidCustomer(data, id) {
+      return data.keys().hasAll(['id', 'name', 'phone', 'address', 'openingBalance', 'isProvider', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'name', 'phone', 'address', 'openingBalance', 'isProvider', 'note', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) && data.id == id &&
+        isValidStr(data.name, 200) &&
+        isValidStr(data.phone, 80) &&
+        isValidStr(data.address, 300) &&
+        isValidNum(data.openingBalance) &&
+        data.isProvider is bool &&
+        isValidOptStr(data, 'note', 500) &&
+        hasTimestamps(data);
+    }
+
+    function isValidItem(data, id) {
+      return data.keys().hasAll(['id', 'sku', 'name', 'company', 'group', 'cost', 'price', 'reorder', 'barcode', 'note', 'batch', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'sku', 'name', 'company', 'group', 'cost', 'price', 'reorder', 'barcode', 'note', 'batch', 'trackingMode', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) && data.id == id &&
+        isValidStr(data.sku, 80) &&
+        isValidStr(data.name, 200) &&
+        isValidStr(data.company, 160) &&
+        isValidStr(data.group, 120) &&
+        isValidNum(data.cost) &&
+        isValidNum(data.price) &&
+        isValidNum(data.reorder) &&
+        isValidStr(data.barcode, 120) &&
+        isValidStr(data.note, 500) &&
+        data.batch is bool &&
+        (!('trackingMode' in data) || data.trackingMode in ['global', 'both', 'lot', 'expiry', 'none']) &&
+        hasTimestamps(data);
+    }
+
+    function isValidStock(data, id) {
+      return data.keys().hasAll(['id', 'itemId', 'branchId', 'batchNo', 'expiry', 'qty', 'cost', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'itemId', 'branchId', 'batchNo', 'expiry', 'qty', 'cost', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) && data.id == id &&
+        isValidId(data.itemId) &&
+        isValidId(data.branchId) &&
+        isValidStr(data.batchNo, 120) &&
+        isValidStr(data.expiry, 32) &&
+        isValidNum(data.qty) && data.qty >= 0 &&
+        isValidNum(data.cost) &&
+        hasTimestamps(data);
+    }
+
+    function isValidInvoice(data, id) {
+      return data.keys().hasAll(['id', 'no', 'date', 'customerId', 'branchId', 'lines', 'orderDiscType', 'orderDiscVal', 'sub', 'discAmt', 'tax', 'total', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'no', 'date', 'customerId', 'branchId', 'note', 'lines', 'orderDiscType', 'orderDiscVal', 'sub', 'discAmt', 'tax', 'total', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) && data.id == id &&
+        isValidStr(data.no, 64) &&
+        isValidStr(data.date, 32) &&
+        isValidId(data.customerId) &&
+        isValidId(data.branchId) &&
+        isValidOptStr(data, 'note', 1000) &&
+        isValidList(data.lines, 500) &&
+        data.orderDiscType in ['pct', 'amt'] &&
+        isValidNum(data.orderDiscVal) &&
+        isValidNum(data.sub) &&
+        isValidNum(data.discAmt) &&
+        isValidNum(data.tax) &&
+        isValidNum(data.total) &&
+        hasTimestamps(data);
+    }
+
+    function isValidDelivery(data, id) {
+      return data.keys().hasAll(['id', 'no', 'date', 'customerId', 'branchId', 'lines', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'no', 'date', 'invoiceId', 'returnSlipId', 'customerId', 'branchId', 'note', 'lines', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) && data.id == id &&
+        isValidStr(data.no, 64) &&
+        isValidStr(data.date, 32) &&
+        (!('invoiceId' in data) || data.invoiceId == null || data.invoiceId == '' || isValidId(data.invoiceId)) &&
+        (!('returnSlipId' in data) || data.returnSlipId == null || data.returnSlipId == '' || isValidId(data.returnSlipId)) &&
+        isValidId(data.customerId) &&
+        isValidId(data.branchId) &&
+        isValidOptStr(data, 'note', 1000) &&
+        isValidList(data.lines, 500) &&
+        hasTimestamps(data);
+    }
+
+    function isValidReturnSlip(data, id) {
+      return data.keys().hasAll(['id', 'no', 'date', 'customerId', 'branchId', 'returnInvoiceId', 'lines', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'no', 'date', 'customerId', 'branchId', 'note', 'returnInvoiceId', 'lines', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) && data.id == id &&
+        isValidStr(data.no, 64) &&
+        isValidStr(data.date, 32) &&
+        isValidId(data.customerId) &&
+        isValidId(data.branchId) &&
+        isValidOptStr(data, 'note', 1000) &&
+        isValidNullableId(data, 'returnInvoiceId') &&
+        isValidList(data.lines, 500) &&
+        hasTimestamps(data);
+    }
+
+    function isValidReturnInvoice(data, id) {
+      return data.keys().hasAll(['id', 'no', 'date', 'customerId', 'branchId', 'returnSlipId', 'lines', 'total', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'no', 'date', 'customerId', 'branchId', 'returnSlipId', 'note', 'lines', 'total', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) && data.id == id &&
+        isValidStr(data.no, 64) &&
+        isValidStr(data.date, 32) &&
+        isValidId(data.customerId) &&
+        isValidId(data.branchId) &&
+        isValidId(data.returnSlipId) &&
+        isValidOptStr(data, 'note', 1000) &&
+        isValidList(data.lines, 500) &&
+        isValidNum(data.total) &&
+        hasTimestamps(data);
+    }
+
+    function isValidIntake(data, id) {
+      return data.keys().hasAll(['id', 'no', 'date', 'providerId', 'branchId', 'total', 'lines', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'no', 'date', 'providerId', 'branchId', 'note', 'total', 'lines', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) && data.id == id &&
+        isValidStr(data.no, 64) &&
+        isValidStr(data.date, 32) &&
+        isValidId(data.providerId) &&
+        isValidId(data.branchId) &&
+        isValidOptStr(data, 'note', 1000) &&
+        isValidNum(data.total) &&
+        isValidList(data.lines, 500) &&
+        hasTimestamps(data);
+    }
+
+    function isValidArrival(data, id) {
+      return data.keys().hasAll(['id', 'no', 'date', 'intakeId', 'branchId', 'lines', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'no', 'date', 'intakeId', 'branchId', 'note', 'lines', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) && data.id == id &&
+        isValidStr(data.no, 64) &&
+        isValidStr(data.date, 32) &&
+        (data.intakeId == '' || isValidId(data.intakeId)) &&
+        isValidId(data.branchId) &&
+        isValidOptStr(data, 'note', 1000) &&
+        isValidList(data.lines, 500) &&
+        hasTimestamps(data);
+    }
+
+    function isValidPayment(data, id) {
+      return data.keys().hasAll(['id', 'no', 'date', 'customerId', 'amount', 'disc', 'method', 'dir', 'branchId', 'allocs', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'no', 'date', 'customerId', 'amount', 'disc', 'method', 'note', 'dir', 'branchId', 'accountId', 'allocs', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) && data.id == id &&
+        isValidStr(data.no, 64) &&
+        isValidStr(data.date, 32) &&
+        isValidId(data.customerId) &&
+        isValidNum(data.amount) &&
+        isValidNum(data.disc) &&
+        isValidStr(data.method, 32) &&
+        isValidOptStr(data, 'note', 1000) &&
+        data.dir in ['in', 'out'] &&
+        isValidId(data.branchId) &&
+        isValidNullableId(data, 'accountId') &&
+        isValidList(data.allocs, 500) &&
+        hasTimestamps(data);
+    }
+
+    function isValidCheck(data, id) {
+      return data.keys().hasAll(['id', 'no', 'customerId', 'checkNo', 'bank', 'amount', 'status', 'receivedDate', 'dueDate', 'payouts', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'no', 'customerId', 'checkNo', 'bank', 'amount', 'status', 'receivedDate', 'dueDate', 'note', 'payouts', 'clearedAccountId', 'clearedDate', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) && data.id == id &&
+        isValidStr(data.no, 64) &&
+        isValidId(data.customerId) &&
+        isValidStr(data.checkNo, 120) &&
+        isValidStr(data.bank, 160) &&
+        isValidNum(data.amount) &&
+        data.status in ['received', 'deposited', 'cleared', 'bounced', 'overdue'] &&
+        isValidStr(data.receivedDate, 32) &&
+        isValidStr(data.dueDate, 32) &&
+        isValidOptStr(data, 'note', 1000) &&
+        isValidList(data.payouts, 200) &&
+        isValidNullableId(data, 'clearedAccountId') &&
+        isValidOptStr(data, 'clearedDate', 32) &&
+        hasTimestamps(data);
+    }
+
+    function isValidTransfer(data, id) {
+      return data.keys().hasAll(['id', 'no', 'date', 'fromBranchId', 'toBranchId', 'status', 'lines', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'no', 'date', 'receivedDate', 'fromBranchId', 'toBranchId', 'status', 'note', 'lines', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) && data.id == id &&
+        isValidStr(data.no, 64) &&
+        isValidStr(data.date, 32) &&
+        isValidOptStr(data, 'receivedDate', 32) &&
+        isValidId(data.fromBranchId) &&
+        isValidId(data.toBranchId) &&
+        data.status in ['transit', 'completed', 'cancelled'] &&
+        isValidOptStr(data, 'note', 1000) &&
+        isValidList(data.lines, 500) &&
+        hasTimestamps(data);
+    }
+
+    function isValidDisposal(data, id) {
+      return data.keys().hasAll(['id', 'no', 'date', 'branchId', 'status', 'lines', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'no', 'date', 'branchId', 'status', 'loss', 'note', 'lines', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) && data.id == id &&
+        isValidStr(data.no, 64) &&
+        isValidStr(data.date, 32) &&
+        isValidId(data.branchId) &&
+        data.status in ['pending', 'approved', 'rejected'] &&
+        isValidOptNum(data, 'loss') &&
+        isValidOptStr(data, 'note', 1000) &&
+        isValidList(data.lines, 500) &&
+        hasTimestamps(data);
+    }
+
+    function isValidBarter(data, id) {
+      return data.keys().hasAll(['id', 'no', 'date', 'partnerId', 'branchId', 'giveLines', 'recvLines', 'giveValue', 'recvValue', 'loss', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'no', 'date', 'partnerId', 'branchId', 'note', 'giveLines', 'recvLines', 'giveValue', 'recvValue', 'loss', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) && data.id == id &&
+        isValidStr(data.no, 64) &&
+        isValidStr(data.date, 32) &&
+        isValidId(data.partnerId) &&
+        isValidId(data.branchId) &&
+        isValidOptStr(data, 'note', 1000) &&
+        isValidList(data.giveLines, 500) &&
+        isValidList(data.recvLines, 500) &&
+        isValidNum(data.giveValue) &&
+        isValidNum(data.recvValue) &&
+        isValidNum(data.loss) &&
+        hasTimestamps(data);
+    }
+
+    function isValidAdjust(data, id) {
+      return data.keys().hasAll(['id', 'date', 'branchId', 'itemId', 'qty', 'cost', 'reason', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'date', 'branchId', 'itemId', 'batchNo', 'expiry', 'qty', 'cost', 'reason', 'user', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) && data.id == id &&
+        isValidStr(data.date, 32) &&
+        isValidId(data.branchId) &&
+        isValidId(data.itemId) &&
+        isValidOptStr(data, 'batchNo', 120) &&
+        isValidOptStr(data, 'expiry', 32) &&
+        isValidNum(data.qty) &&
+        isValidNum(data.cost) &&
+        isValidStr(data.reason, 500) &&
+        isValidOptStr(data, 'user', 160) &&
+        hasTimestamps(data);
+    }
+
+    function isValidMoneyMove(data, id) {
+      return data.keys().hasAll(['id', 'no', 'date', 'fromAccountId', 'toAccountId', 'amount', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'no', 'date', 'acceptedDate', 'fromAccountId', 'toAccountId', 'amount', 'note', 'status', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) && data.id == id &&
+        isValidStr(data.no, 64) &&
+        isValidStr(data.date, 32) &&
+        isValidOptStr(data, 'acceptedDate', 32) &&
+        isValidId(data.fromAccountId) &&
+        isValidId(data.toAccountId) &&
+        isValidNum(data.amount) &&
+        isValidOptStr(data, 'note', 1000) &&
+        data.status in ['transit', 'done', 'cancelled'] &&
+        hasTimestamps(data);
+    }
+
+    function isValidExpense(data, id) {
+      return data.keys().hasAll(['id', 'no', 'date', 'category', 'accountId', 'amount', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'no', 'date', 'category', 'accountId', 'amount', 'note', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) && data.id == id &&
+        isValidStr(data.no, 64) &&
+        isValidStr(data.date, 32) &&
+        isValidStr(data.category, 120) &&
+        isValidId(data.accountId) &&
+        isValidNum(data.amount) &&
+        isValidOptStr(data, 'note', 1000) &&
+        hasTimestamps(data);
+    }
+
+    function isValidAudit(data, id) {
+      return data.keys().hasAll(['id', 'ts', 'user', 'action', 'details', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'ts', 'user', 'action', 'details', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) && data.id == id &&
+        isValidNum(data.ts) &&
+        isValidStr(data.user, 160) &&
+        isValidStr(data.action, 200) &&
+        isValidStr(data.details, 1000) &&
+        hasTimestamps(data);
+    }
+
+    // 1. Settings singleton
+    match /settings/{settingId} {
+      allow get: if isActiveUser() && settingId == 'main';
+      allow list: if false;
+      allow create: if settingId == 'main' &&
+        isAdmin() &&
+        isValidSettings(incoming()) &&
+        isCreateTimestampValid();
+      allow update: if settingId == 'main' &&
+        (isAdmin() || hasPerm('settings')) &&
+        isValidSettings(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    // 2. Per-branch document counters
+    match /counters/{branchId} {
+      allow get: if isValidId(branchId) && (isAdmin() || inBranch(branchId));
+      allow list: if isAdmin();
+      allow create: if isValidId(branchId) &&
+        (isAdmin() || inBranch(branchId)) &&
+        isValidCounter(incoming()) &&
+        isCreateTimestampValid();
+      allow update: if isValidId(branchId) &&
+        (isAdmin() || inBranch(branchId)) &&
+        isValidCounter(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time;
+      allow delete: if isAdmin() && isValidId(branchId);
+    }
+
+    // 3. Employee users & RBAC permissions
+    match /users/{uid} {
+      allow get: if isSignedIn() && isValidId(uid) && (
+        isAdmin() ||
+        (
+          request.auth.uid == uid &&
+          (
+            (resource == null && request.auth.token.email == 'admin@company.internal' && !exists(/databases/$(database)/documents/settings/main)) ||
+            (resource != null && existing().active == true && (!('deleted' in existing()) || existing().deleted != true))
+          )
+        )
+      );
+      allow list: if isAdmin();
+      allow create: if isValidId(uid) &&
+        isValidUser(incoming(), uid) &&
+        isCreateTimestampValid() &&
+        (isAdmin() || isInitialAdminBootstrap(uid));
+      allow update: if isValidId(uid) &&
+        isValidUser(incoming(), uid) &&
+        isUpdateMetaValid(uid) &&
+        (
+          isAdmin() ||
+          (
+            isActiveUser() &&
+            request.auth.uid == uid &&
+            incoming().name == existing().name &&
+            incoming().username == existing().username &&
+            incoming().role == existing().role &&
+            incoming().branchIds == existing().branchIds &&
+            incoming().active == existing().active &&
+            incoming().perms == existing().perms &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['theme', 'sidebarCollapsed', 'updatedAt'])
+          )
+        );
+      allow delete: if isAdmin() && isValidId(uid) && request.auth.uid != uid;
+    }
+
+    // 4. Branches
+    match /branches/{branchId} {
+      allow get, list: if isActiveUser();
+      allow create: if isValidId(branchId) &&
+        isAdmin() &&
+        isValidBranch(incoming(), branchId) &&
+        isCreateTimestampValid();
+      allow update: if isValidId(branchId) &&
+        isAdmin() &&
+        isValidBranch(incoming(), branchId) &&
+        isUpdateMetaValid(branchId);
+      allow delete: if isAdmin() && isValidId(branchId);
+    }
+
+    // 5. Financial Accounts
+    match /accounts/{accountId} {
+      allow get, list: if isAdmin() || hasPerm('ledger') || hasPerm('sales') || hasPerm('purchasing') || hasPerm('checks') || hasPerm('reports');
+      allow create: if isValidId(accountId) &&
+        (isAdmin() || hasPerm('ledger') || hasPerm('edit_money')) &&
+        isValidAccount(incoming(), accountId) &&
+        isCreateTimestampValid();
+      allow update: if isValidId(accountId) &&
+        (isAdmin() || hasPerm('edit_money')) &&
+        isValidAccount(incoming(), accountId) &&
+        isUpdateMetaValid(accountId);
+      allow delete: if isValidId(accountId) && (isAdmin() || hasPerm('delete_money'));
+    }
+
+    // 6. Customers & Suppliers
+    match /customers/{customerId} {
+      allow get, list: if isAdmin() || hasPerm('customers') || hasPerm('sales') || hasPerm('purchasing') || hasPerm('ledger') || hasPerm('barter') || hasPerm('checks') || hasPerm('reports');
+      allow create: if isValidId(customerId) &&
+        (isAdmin() || hasPerm('customers') || hasPerm('edit_customers') || hasPerm('data')) &&
+        isValidCustomer(incoming(), customerId) &&
+        isCreateTimestampValid();
+      allow update: if isValidId(customerId) &&
+        (isAdmin() || hasPerm('edit_customers')) &&
+        isValidCustomer(incoming(), customerId) &&
+        isUpdateMetaValid(customerId);
+      allow delete: if isValidId(customerId) && (isAdmin() || hasPerm('delete_customers'));
+    }
+
+    // 7. Inventory Items Catalog
+    match /items/{itemId} {
+      allow get, list: if isAdmin() || hasPerm('inventory') || hasPerm('sales') || hasPerm('purchasing') || hasPerm('transfers') || hasPerm('disposals') || hasPerm('barter') || hasPerm('reports');
+      allow create: if isValidId(itemId) &&
+        (isAdmin() || hasPerm('inventory') || hasPerm('edit_inventory') || hasPerm('data')) &&
+        isValidItem(incoming(), itemId) &&
+        isCreateTimestampValid();
+      allow update: if isValidId(itemId) &&
+        isValidItem(incoming(), itemId) &&
+        isUpdateMetaValid(itemId) &&
+        (
+          isAdmin() ||
+          hasPerm('edit_inventory') ||
+          (hasPerm('purchasing') && incoming().diff(existing()).affectedKeys().hasOnly(['cost', 'updatedAt']))
+        );
+      allow delete: if isValidId(itemId) && (isAdmin() || hasPerm('delete_inventory'));
+    }
+
+    // 8. Live Stock Batches (branch-scoped)
+    match /stocks/{stockId} {
+      allow get, list: if isAdmin() || (
+        inBranch(existing().branchId) &&
+        (hasPerm('inventory') || hasPerm('sales') || hasPerm('purchasing') || hasPerm('transfers') || hasPerm('disposals') || hasPerm('barter') || hasPerm('reports'))
+      );
+      allow create: if isValidId(stockId) &&
+        isValidStock(incoming(), stockId) &&
+        isCreateTimestampValid() &&
+        (
+          isAdmin() ||
+          (
+            inBranch(incoming().branchId) &&
+            (hasPerm('sales') || hasPerm('edit_invoices') || hasPerm('purchasing') || hasPerm('inventory') || hasPerm('adjust_inventory') || hasPerm('edit_transfers') || hasPerm('barter') || hasPerm('delete_invoices') || hasPerm('delete_deliveries') || hasPerm('delete_returns') || hasPerm('delete_buying') || hasPerm('delete_barter'))
+          )
+        );
+      allow update: if isValidId(stockId) &&
+        isValidStock(incoming(), stockId) &&
+        isUpdateMetaValid(stockId) &&
+        incoming().branchId == existing().branchId &&
+        (
+          isAdmin() ||
+          (
+            inBranch(existing().branchId) &&
+            (hasPerm('sales') || hasPerm('edit_invoices') || hasPerm('purchasing') || hasPerm('inventory') || hasPerm('adjust_inventory') || hasPerm('edit_transfers') || hasPerm('edit_disposals') || hasPerm('barter') || hasPerm('delete_invoices') || hasPerm('delete_deliveries') || hasPerm('delete_returns') || hasPerm('delete_buying') || hasPerm('delete_barter'))
+          )
+        );
+      allow delete: if isValidId(stockId) && (
+        isAdmin() ||
+        (
+          inBranch(existing().branchId) &&
+          (hasPerm('sales') || hasPerm('edit_invoices') || hasPerm('purchasing') || hasPerm('inventory') || hasPerm('adjust_inventory') || hasPerm('edit_transfers') || hasPerm('edit_disposals') || hasPerm('barter') || hasPerm('delete_inventory') || hasPerm('delete_invoices') || hasPerm('delete_deliveries') || hasPerm('delete_returns') || hasPerm('delete_buying') || hasPerm('delete_barter'))
+        )
+      );
+    }
+
+    // 9. Sales Invoices (branch-scoped)
+    match /invoices/{invoiceId} {
+      allow get, list: if isAdmin() || (inBranch(existing().branchId) && (hasPerm('sales') || hasPerm('ledger') || hasPerm('reports')));
+      allow create: if isValidId(invoiceId) &&
+        isValidInvoice(incoming(), invoiceId) &&
+        isCreateTimestampValid() &&
+        (isAdmin() || (hasPerm('sales') && inBranch(incoming().branchId)));
+      allow update: if isValidId(invoiceId) &&
+        isValidInvoice(incoming(), invoiceId) &&
+        isUpdateMetaValid(invoiceId) &&
+        (isAdmin() || (hasPerm('edit_invoices') && inBranch(existing().branchId) && inBranch(incoming().branchId)));
+      allow delete: if isValidId(invoiceId) && (isAdmin() || (hasPerm('delete_invoices') && inBranch(existing().branchId)));
+    }
+
+    // 10. Delivery Slips (branch-scoped)
+    match /deliveries/{deliveryId} {
+      allow get, list: if isAdmin() || (inBranch(existing().branchId) && (hasPerm('sales') || hasPerm('reports')));
+      allow create: if isValidId(deliveryId) &&
+        isValidDelivery(incoming(), deliveryId) &&
+        isCreateTimestampValid() &&
+        (isAdmin() || (hasPerm('sales') && inBranch(incoming().branchId)));
+      allow update: if isValidId(deliveryId) &&
+        isValidDelivery(incoming(), deliveryId) &&
+        isUpdateMetaValid(deliveryId) &&
+        (isAdmin() || (hasPerm('edit_deliveries') && inBranch(existing().branchId) && inBranch(incoming().branchId)));
+      allow delete: if isValidId(deliveryId) && (isAdmin() || ((hasPerm('delete_deliveries') || hasPerm('delete_invoices') || hasPerm('delete_returns')) && inBranch(existing().branchId)));
+    }
+
+    // 11. Return Slips (branch-scoped)
+    match /returnSlips/{slipId} {
+      allow get, list: if isAdmin() || (inBranch(existing().branchId) && (hasPerm('sales') || hasPerm('reports')));
+      allow create: if isValidId(slipId) &&
+        isValidReturnSlip(incoming(), slipId) &&
+        isCreateTimestampValid() &&
+        (isAdmin() || (hasPerm('sales') && inBranch(incoming().branchId)));
+      allow update: if isValidId(slipId) &&
+        isValidReturnSlip(incoming(), slipId) &&
+        isUpdateMetaValid(slipId) &&
+        (
+          isAdmin() ||
+          (hasPerm('edit_returns') && inBranch(existing().branchId) && inBranch(incoming().branchId)) ||
+          (
+            inBranch(existing().branchId) &&
+            (hasPerm('sales') || hasPerm('delete_returns')) &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['returnInvoiceId', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(slipId) && (isAdmin() || (hasPerm('delete_returns') && inBranch(existing().branchId)));
+    }
+
+    // 12. Return Credit Notes (branch-scoped)
+    match /returnInvoices/{creditNoteId} {
+      allow get, list: if isAdmin() || (inBranch(existing().branchId) && (hasPerm('sales') || hasPerm('ledger') || hasPerm('reports')));
+      allow create: if isValidId(creditNoteId) &&
+        isValidReturnInvoice(incoming(), creditNoteId) &&
+        isCreateTimestampValid() &&
+        (isAdmin() || (hasPerm('sales') && inBranch(incoming().branchId)));
+      allow update: if isValidId(creditNoteId) &&
+        isValidReturnInvoice(incoming(), creditNoteId) &&
+        isUpdateMetaValid(creditNoteId) &&
+        (isAdmin() || (hasPerm('edit_returns') && inBranch(existing().branchId) && inBranch(incoming().branchId)));
+      allow delete: if isValidId(creditNoteId) && (isAdmin() || (hasPerm('delete_returns') && inBranch(existing().branchId)));
+    }
+
+    // 13. Buying Receipts (branch-scoped)
+    match /intakes/{intakeId} {
+      allow get, list: if isAdmin() || (inBranch(existing().branchId) && (hasPerm('purchasing') || hasPerm('ledger') || hasPerm('reports')));
+      allow create: if isValidId(intakeId) &&
+        isValidIntake(incoming(), intakeId) &&
+        isCreateTimestampValid() &&
+        (isAdmin() || (hasPerm('purchasing') && inBranch(incoming().branchId)));
+      allow update: if isValidId(intakeId) &&
+        isValidIntake(incoming(), intakeId) &&
+        isUpdateMetaValid(intakeId) &&
+        (isAdmin() || (hasPerm('edit_buying') && inBranch(existing().branchId) && inBranch(incoming().branchId)));
+      allow delete: if isValidId(intakeId) && (isAdmin() || (hasPerm('delete_buying') && inBranch(existing().branchId)));
+    }
+
+    // 14. Goods Arrival Notes (branch-scoped)
+    match /arrivals/{arrivalId} {
+      allow get, list: if isAdmin() || (inBranch(existing().branchId) && (hasPerm('purchasing') || hasPerm('reports')));
+      allow create: if isValidId(arrivalId) &&
+        isValidArrival(incoming(), arrivalId) &&
+        isCreateTimestampValid() &&
+        (isAdmin() || (hasPerm('purchasing') && inBranch(incoming().branchId)));
+      allow update: if isValidId(arrivalId) &&
+        isValidArrival(incoming(), arrivalId) &&
+        isUpdateMetaValid(arrivalId) &&
+        (isAdmin() || (hasPerm('edit_buying') && inBranch(existing().branchId) && inBranch(incoming().branchId)));
+      allow delete: if isValidId(arrivalId) && (isAdmin() || (hasPerm('delete_buying') && inBranch(existing().branchId)));
+    }
+
+    // 15. Payment Vouchers (branch-scoped)
+    match /payments/{paymentId} {
+      allow get, list: if isAdmin() || (inBranch(existing().branchId) && (hasPerm('ledger') || hasPerm('sales') || hasPerm('purchasing') || hasPerm('reports')));
+      allow create: if isValidId(paymentId) &&
+        isValidPayment(incoming(), paymentId) &&
+        isCreateTimestampValid() &&
+        (isAdmin() || (hasPerm('ledger') && inBranch(incoming().branchId)));
+      allow update: if isValidId(paymentId) &&
+        isValidPayment(incoming(), paymentId) &&
+        isUpdateMetaValid(paymentId) &&
+        (
+          isAdmin() ||
+          (hasPerm('edit_payments') && inBranch(existing().branchId) && inBranch(incoming().branchId)) ||
+          (
+            inBranch(existing().branchId) &&
+            (hasPerm('delete_invoices') || hasPerm('delete_buying')) &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['allocs', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(paymentId) && (isAdmin() || (hasPerm('delete_payments') && inBranch(existing().branchId)));
+    }
+
+    // 16. Checks in Hand (terminal state locked on cleared/bounced)
+    match /checks/{checkId} {
+      allow get, list: if isAdmin() || hasPerm('checks') || hasPerm('ledger') || hasPerm('reports');
+      allow create: if isValidId(checkId) &&
+        isValidCheck(incoming(), checkId) &&
+        isCreateTimestampValid() &&
+        (isAdmin() || hasPerm('checks') || hasPerm('ledger'));
+      allow update: if isValidId(checkId) &&
+        isValidCheck(incoming(), checkId) &&
+        isUpdateMetaValid(checkId) &&
+        (
+          isAdmin() ||
+          (hasPerm('edit_checks') && !(existing().status in ['cleared', 'bounced']))
+        );
+      allow delete: if isValidId(checkId) && (isAdmin() || hasPerm('delete_checks'));
+    }
+
+    // 17. Inter-Branch Transfers (dual-branch & terminal state locked)
+    match /transfers/{transferId} {
+      allow get, list: if isAdmin() || (
+        hasPerm('transfers') &&
+        (inBranch(existing().fromBranchId) || inBranch(existing().toBranchId))
+      );
+      allow create: if isValidId(transferId) &&
+        isValidTransfer(incoming(), transferId) &&
+        isCreateTimestampValid() &&
+        (
+          isAdmin() ||
+          (hasPerm('transfers') && hasPerm('edit_transfers') && inBranch(incoming().fromBranchId) && incoming().status == 'transit')
+        );
+      allow update: if isValidId(transferId) &&
+        isValidTransfer(incoming(), transferId) &&
+        isUpdateMetaValid(transferId) &&
+        (
+          isAdmin() ||
+          (
+            existing().status == 'transit' &&
+            (inBranch(existing().fromBranchId) || inBranch(existing().toBranchId)) &&
+            (hasPerm('edit_transfers') || (hasPerm('delete_transfers') && incoming().status == 'cancelled')) &&
+            incoming().status in ['completed', 'cancelled'] &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'receivedDate', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(transferId) && (isAdmin() || (hasPerm('delete_transfers') && inBranch(existing().fromBranchId)));
+    }
+
+    // 18. Disposals & Write-offs (branch-scoped & terminal state locked)
+    match /disposals/{disposalId} {
+      allow get, list: if isAdmin() || (inBranch(existing().branchId) && (hasPerm('disposals') || hasPerm('reports')));
+      allow create: if isValidId(disposalId) &&
+        isValidDisposal(incoming(), disposalId) &&
+        isCreateTimestampValid() &&
+        (
+          isAdmin() ||
+          (hasPerm('disposals') && hasPerm('edit_disposals') && inBranch(incoming().branchId) && incoming().status == 'pending')
+        );
+      allow update: if isValidId(disposalId) &&
+        isValidDisposal(incoming(), disposalId) &&
+        isUpdateMetaValid(disposalId) &&
+        (
+          isAdmin() ||
+          (
+            hasPerm('edit_disposals') &&
+            inBranch(existing().branchId) &&
+            existing().status == 'pending' &&
+            incoming().status in ['approved', 'rejected'] &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'loss', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(disposalId) && (isAdmin() || (hasPerm('delete_disposals') && inBranch(existing().branchId)));
+    }
+
+    // 19. Barter Exchanges (branch-scoped)
+    match /barters/{barterId} {
+      allow get, list: if isAdmin() || (inBranch(existing().branchId) && (hasPerm('barter') || hasPerm('reports')));
+      allow create: if isValidId(barterId) &&
+        isValidBarter(incoming(), barterId) &&
+        isCreateTimestampValid() &&
+        (isAdmin() || (hasPerm('barter') && hasPerm('edit_barter') && inBranch(incoming().branchId)));
+      allow update: if isValidId(barterId) &&
+        isValidBarter(incoming(), barterId) &&
+        isUpdateMetaValid(barterId) &&
+        (isAdmin() || (hasPerm('edit_barter') && inBranch(existing().branchId) && inBranch(incoming().branchId)));
+      allow delete: if isValidId(barterId) && (isAdmin() || (hasPerm('delete_barter') && inBranch(existing().branchId)));
+    }
+
+    // 20. Stock Adjustments (branch-scoped, immutable append-only log)
+    match /adjusts/{adjustId} {
+      allow get, list: if isAdmin() || (inBranch(existing().branchId) && (hasPerm('inventory') || hasPerm('adjust_inventory') || hasPerm('reports')));
+      allow create: if isValidId(adjustId) &&
+        isValidAdjust(incoming(), adjustId) &&
+        isCreateTimestampValid() &&
+        (isAdmin() || (hasPerm('adjust_inventory') && inBranch(incoming().branchId)));
+      allow update: if false;
+      allow delete: if isAdmin() && isValidId(adjustId);
+    }
+
+    // 21. Money Account Transfers (terminal state locked on done/cancelled)
+    match /moneyMoves/{moveId} {
+      allow get, list: if isAdmin() || hasPerm('ledger') || hasPerm('reports');
+      allow create: if isValidId(moveId) &&
+        isValidMoneyMove(incoming(), moveId) &&
+        isCreateTimestampValid() &&
+        (isAdmin() || hasPerm('ledger') || hasPerm('edit_money'));
+      allow update: if isValidId(moveId) &&
+        isValidMoneyMove(incoming(), moveId) &&
+        isUpdateMetaValid(moveId) &&
+        (
+          isAdmin() ||
+          (
+            existing().status == 'transit' &&
+            (hasPerm('ledger') || hasPerm('edit_money') || hasPerm('delete_money')) &&
+            incoming().status in ['done', 'cancelled'] &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'acceptedDate', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(moveId) && (isAdmin() || hasPerm('delete_money'));
+    }
+
+    // 22. Operating Expenses
+    match /expenses/{expenseId} {
+      allow get, list: if isAdmin() || hasPerm('ledger') || hasPerm('reports');
+      allow create: if isValidId(expenseId) &&
+        isValidExpense(incoming(), expenseId) &&
+        isCreateTimestampValid() &&
+        (isAdmin() || hasPerm('ledger') || hasPerm('edit_expenses'));
+      allow update: if isValidId(expenseId) &&
+        isValidExpense(incoming(), expenseId) &&
+        isUpdateMetaValid(expenseId) &&
+        (isAdmin() || hasPerm('edit_expenses'));
+      allow delete: if isValidId(expenseId) && (isAdmin() || hasPerm('delete_expenses'));
+    }
+
+    // 23. System Audit Log (append-only)
+    match /audit/{auditId} {
+      allow get, list: if isAdmin() || canReadAudit();
+      allow create: if isValidId(auditId) &&
+        isActiveUser() &&
+        isValidAudit(incoming(), auditId) &&
+        isCreateTimestampValid();
+      allow update: if false;
+      allow delete: if isAdmin() && isValidId(auditId);
+    }
+  }
+}
